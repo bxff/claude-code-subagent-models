@@ -1,5 +1,5 @@
 {
-  "name": "claude-code-hybrid-router",
+  "name": "claude-code-providers",
   "version": "0.1.0",
   "description": "Add third-party models to Claude Code. Per-request routing, no proxy, no extra login.",
   "type": "module",
@@ -24,6 +24,6 @@
   "author": "Dex Devlon (bxff)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bxff/claude-code-hybrid-router.git"
+    "url": "git+https://github.com/bxff/claude-code-providers.git"
   }
 }
