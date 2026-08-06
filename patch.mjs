@@ -145,6 +145,7 @@ function buildInjected(providers, models, param, baseVar, authHelper) {
 
 export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null) {
   if (bundle.includes(MARK)) return { out: bundle, patched: false };
+  providers = providers.map(p => ({ prefix: p.prefix, baseUrl: p.baseUrl, apiKeyEnv: p.apiKeyEnv }));
 
   if (!models) models = providers.flatMap(p => (p.models || []).map(m => typeof m === 'string' ? m : m.name));
 
