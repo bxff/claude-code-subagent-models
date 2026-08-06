@@ -1,9 +1,9 @@
-# claude-code-patches
+# claude-code-subagent-models
 
 Add third-party models to Claude Code. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client.
 
 ```bash
-npx claude-code-patches /path/to/claude claude-patched.js
+npx claude-code-subagent-models /path/to/claude claude-patched.js
 bun claude-patched.js
 ```
 
@@ -40,4 +40,4 @@ Config changes are picked up at runtime, no re-patch needed.
 
 `patch.mjs` splices the request layer of the bundle: the request assembler, the auth helper, the subagent model list, and the alias resolver. Anchors are structural regexes over stable tokens, and minified identifiers are captured from the bundle at patch time, so the patch survives renames across versions (verified on 2.1.88 and 2.1.220). It accepts the native binary or an extracted bundle, is idempotent, and verifies the output with a parse check and a boot check.
 
-[npm](https://www.npmjs.com/package/claude-code-patches) · [GitHub](https://github.com/bxff/claude-code-patches)
+[npm](https://www.npmjs.com/package/claude-code-subagent-models) · [GitHub](https://github.com/bxff/claude-code-subagent-models)
