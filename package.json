@@ -1,0 +1,29 @@
+{
+  "name": "claude-code-hybrid-router",
+  "version": "0.1.0",
+  "description": "Add third-party models to Claude Code. Per-request routing, no proxy, no extra login.",
+  "type": "module",
+  "bin": {
+    "cc-router": "./patch.mjs"
+  },
+  "exports": {
+    ".": "./patch.mjs"
+  },
+  "files": [
+    "patch.mjs",
+    "README.md"
+  ],
+  "keywords": [
+    "claude-code",
+    "deepseek",
+    "routing",
+    "providers",
+    "subagents"
+  ],
+  "license": "MIT",
+  "author": "Dex Devlon (bxff)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bxff/claude-code-hybrid-router.git"
+  }
+}
