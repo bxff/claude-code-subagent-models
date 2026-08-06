@@ -1,17 +1,15 @@
 # claude-code-subagent-models
 
-Add third-party models to Claude Code. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client.
-
 ```bash
 npx claude-code-subagent-models /path/to/claude claude-patched.js
 bun claude-patched.js
 ```
 
-Zero config: `deepseek-*` models route to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
+Adds third-party models to Claude Code as subagents. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client. Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
 
 ## Config
 
-Providers are a JSON array in the `CC_PROVIDERS` env var, set in `~/.claude/settings.json`:
+Providers are a JSON array in `CC_PROVIDERS`, set in `~/.claude/settings.json`:
 
 ```json
 {
@@ -36,8 +34,10 @@ Providers are a JSON array in the `CC_PROVIDERS` env var, set in `~/.claude/sett
 
 Config changes are picked up at runtime, no re-patch needed.
 
-## How it works
+## Limitations
 
-`patch.mjs` splices the request layer of the bundle: the request assembler, the auth helper, the subagent model list, and the alias resolver. Anchors are structural regexes over stable tokens, and minified identifiers are captured from the bundle at patch time, so the patch survives renames across versions (verified on 2.1.88 and 2.1.220). It accepts the native binary or an extracted bundle, is idempotent, and verifies the output with a parse check and a boot check.
+Patches the local bundle: re-run the command after each Claude Code update. Your provider needs an Anthropic-compatible endpoint, and the patch fails loudly instead of breaking silently if an update renames something.
+
+Read more: [DeepSeek subagents in Claude Code on a Max plan, without a proxy](https://musaab.io/posts/2026/deepseek-subagents-claude-code)
 
 [npm](https://www.npmjs.com/package/claude-code-subagent-models) · [GitHub](https://github.com/bxff/claude-code-subagent-models)

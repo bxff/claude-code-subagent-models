@@ -1,23 +1,14 @@
 #!/usr/bin/env node
 /**
- * claude-code-hybrid-router — add third-party models to Claude Code.
+ * claude-code-subagent-models — add third-party models to Claude Code.
  *
  * Model names matching a configured provider prefix are routed to that
  * provider's Anthropic-compatible endpoint with that provider's API key;
- * every other model keeps the normal session endpoint and auth.
- *
- * Zero config: deepseek-* models route to DeepSeek by default. Pass
- * --providers <file.json> to change the default baked into the patch, or
- * override at runtime with the CC_PROVIDERS env var (JSON array of
- * { prefix, baseUrl, apiKeyEnv }).
- *
- * Anchors are structural regexes over stable tokens (method names, property
- * keys), with minified identifiers captured from the bundle at patch time.
- * Verified on the 2.1.88 npm bundle and the 2.1.220 native binary bundle.
+ * everything else keeps the normal session endpoint and auth.
  *
  * Usage: node patch.mjs <input> <output.js> [--providers <file.json>]
- *        <input> = native claude binary or extracted cli.js bundle
- *        Run with: bun <output.js>
+ *   <input> = native claude binary or extracted cli.js bundle
+ *   Run with: bun <output.js>
  *
  * Runtime env (shell or ~/.claude/settings.json "env"):
  *   CC_PROVIDERS    JSON: [{"prefix","baseUrl","apiKeyEnv"}] (optional)
