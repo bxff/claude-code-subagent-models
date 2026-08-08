@@ -186,9 +186,9 @@ function buildInjected(providers, models, param, baseVar, authHelper) {
 
 export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nativesDir = null) {
   if (bundle.includes(MARK)) return { out: bundle, patched: false };
-  providers = providers.map(p => ({ prefix: p.prefix, baseUrl: p.baseUrl, apiKeyEnv: p.apiKeyEnv }));
-
+  // derive the model list from the FULL provider config before stripping
   if (!models) models = providers.flatMap(p => (p.models || []).map(m => typeof m === 'string' ? m : m.name));
+  providers = providers.map(p => ({ prefix: p.prefix, baseUrl: p.baseUrl, apiKeyEnv: p.apiKeyEnv }));
 
   const text = bundle.toString('latin1');
 
