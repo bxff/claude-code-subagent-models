@@ -24,6 +24,8 @@ Adds third-party models to Claude Code as subagents. Model names matching a conf
 
 When the input is the native binary, the embedded native addons (image processing, audio capture, computer use, URL handling) are extracted to a `natives/` directory next to the output, so the patched bundle runs under plain Bun with those features intact.
 
+Read more: [DeepSeek subagents in Claude Code on a Max plan, without a proxy](https://musaab.io/posts/2026/deepseek-subagents-claude-code)
+
 ## Config
 
 Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
@@ -37,11 +39,13 @@ Any number of providers is supported. `CC_PROVIDERS` is an array, one entry per 
 ]
 ```
 
-Set it as a single-line JSON string in `~/.claude/settings.json`, and list the models the Agent tool should offer in `CC_EXTRA_MODELS`:
+Set it as a single-line JSON string in `~/.claude/settings.json`, and list the models the Agent tool should offer in `CC_EXTRA_MODELS`. Put the provider keys in the same `env` block: Claude Code loads it into the process at startup, so the one-liner works with nothing else set up.
 
 ```json
 {
   "env": {
+    "CC_DEEPSEEK_API_KEY": "sk-...",
+    "CC_ZAI_API_KEY": "zai-...",
     "CC_PROVIDERS": "[{\"prefix\":\"deepseek\",\"baseUrl\":\"https://api.deepseek.com/anthropic\",\"apiKeyEnv\":\"CC_DEEPSEEK_API_KEY\"},{\"prefix\":\"glm\",\"baseUrl\":\"https://api.z.ai/api/anthropic\",\"apiKeyEnv\":\"CC_ZAI_API_KEY\"}]",
     "CC_EXTRA_MODELS": "deepseek-v4-flash,glm-5.2,glm-4.7"
   }
@@ -67,7 +71,5 @@ Config changes are picked up at runtime, no re-patch needed.
 ## Limitations
 
 Patches the local bundle: re-run the command after each Claude Code update. Your provider needs an Anthropic-compatible endpoint, and the patch fails loudly instead of breaking silently if an update renames something.
-
-Read more: [DeepSeek subagents in Claude Code on a Max plan, without a proxy](https://musaab.io/posts/2026/deepseek-subagents-claude-code)
 
 [npm](https://www.npmjs.com/package/claude-code-subagent-models) · [GitHub](https://github.com/bxff/claude-code-subagent-models)
