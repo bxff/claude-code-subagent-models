@@ -10,9 +10,16 @@
  *   <input> = native claude binary or extracted cli.js bundle
  *   Run with: bun <output.js>
  *
+ * When <input> is the native binary, the embedded native addons
+ * (image-processor, audio-capture, url-handler, computer-use-*) are extracted
+ * next to <output.js> in a natives/ directory, and the bundle's $bunfs
+ * requires are rewritten to load them from there, so the patched bundle runs
+ * under plain bun with the addons intact.
+ *
  * Runtime env (shell or ~/.claude/settings.json "env"):
  *   CC_PROVIDERS    JSON: [{"prefix","baseUrl","apiKeyEnv"}] (optional)
  *   CC_EXTRA_MODELS comma list of model names for the Agent tool (optional)
+ *   CC_NATIVES_DIR  override for the natives/ directory (optional)
  */
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -20,6 +27,12 @@ import { pathToFileURL } from 'node:url';
 
 const MARK = '/*ccr*/';
 const ID = '[a-zA-Z_$][\\w$]*';
+
+// native addons embedded in the binary's $bunfs filesystem
+const NATIVES = [
+  'image-processor.node', 'audio-capture.node', 'url-handler.node',
+  'computer-use-swift.node', 'computer-use-input.node',
+];
 
 export const DEFAULT_PROVIDERS = [{
   prefix: 'deepseek',
@@ -75,17 +88,54 @@ export function extractBundle(binPath) {
   const banner = Buffer.from('// @bun @bytecode @bun-cjs\n(function(exports, require, module, __filename, __dirname)');
   const bunfs = Buffer.from('\x00/$bunfs/root/');
   // native binary mode: pick the largest banner->bunfs section containing the SDK
-  let best = null;
+  let best = null, bestEnd = -1;
   for (let s = data.indexOf(banner); s >= 0; s = data.indexOf(banner, s + 1)) {
     const endMark = data.indexOf(bunfs, s);
     if (endMark < 0) continue;
     const candidate = data.slice(s, endMark);
-    if (BUILD_REQ_RE.test(candidate) && (!best || candidate.length > best.length)) best = candidate;
+    if (BUILD_REQ_RE.test(candidate) && (!best || candidate.length > best.length)) { best = candidate; bestEnd = endMark; }
   }
-  if (best) return best;
+  if (best) return { bundle: best, bunfsStart: bestEnd };
   // plain bundle mode (extracted cli.js or npm bundle)
   if (!BUILD_REQ_RE.test(data)) throw new Error('input is neither a native binary nor a Claude Code bundle');
-  return data;
+  return { bundle: data, bunfsStart: -1 };
+}
+
+// Extract the embedded native addons from a claude binary's $bunfs filesystem.
+// Entries are [name\0][content] runs; the addon files are found by name.
+export function extractNatives(binPath, outDir) {
+  const { bunfsStart } = extractBundle(binPath);
+  if (bunfsStart < 0) return [];
+  const data = fs.readFileSync(binPath);
+  const order = [];
+  for (const name of NATIVES) {
+    const key = Buffer.from(name + '\0');
+    const idx = data.indexOf(key, bunfsStart); // entry headers only: require strings have no NUL
+    if (idx < 0) throw new Error('bunfs entry not found: ' + name);
+    order.push({ name, start: idx });
+  }
+  order.sort((a, b) => a.start - b.start);
+  const out = [];
+  fs.mkdirSync(outDir, { recursive: true });
+  for (let i = 0; i < order.length; i++) {
+    const { name, start } = order[i];
+    const contentStart = start + name.length + 1;
+    const end = i + 1 < order.length ? order[i + 1].start : data.length;
+    const content = data.subarray(contentStart, end);
+    const target = pathJoin(outDir, name);
+    fs.writeFileSync(target, content);
+    out.push(target);
+  }
+  return out;
+}
+
+function pathJoin(...parts) {
+  return parts.join('/').replace(/\\/g, '/');
+}
+
+function dirname(p) {
+  const i = p.lastIndexOf('/');
+  return i > 0 ? p.slice(0, i) : '.';
 }
 
 function buildInjected(providers, models, param, baseVar, authHelper) {
@@ -134,7 +184,7 @@ function buildInjected(providers, models, param, baseVar, authHelper) {
   };
 }
 
-export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null) {
+export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nativesDir = null) {
   if (bundle.includes(MARK)) return { out: bundle, patched: false };
   providers = providers.map(p => ({ prefix: p.prefix, baseUrl: p.baseUrl, apiKeyEnv: p.apiKeyEnv }));
 
@@ -205,6 +255,18 @@ export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null) {
   if (!out.includes('CC_PROVIDERS')) throw new Error('provider routing missing after patch');
   if (gateMatch && GATE_RE.test(out)) throw new Error('original buildURL gate still present');
 
+  // native addons: the $bunfs virtual filesystem only exists inside the
+  // original binary; when running the bundle under plain bun, load the
+  // addons from the extracted natives/ directory instead
+  if (nativesDir) {
+    const base = 'process.env.CC_NATIVES_DIR||' + JSON.stringify(nativesDir);
+    for (const name of NATIVES) {
+      const from = 'require("/$bunfs/root/' + name + '")';
+      if (!out.includes(from)) throw new Error('bunfs require not found: ' + name);
+      out = out.split(from).join('require(' + base + '+"/' + name + '")');
+    }
+  }
+
   return { out: Buffer.from(out, 'latin1'), patched: true };
 }
 
@@ -225,10 +287,15 @@ function main() {
     providers = providers.map(p => ({ prefix: p.prefix, baseUrl: p.baseUrl, apiKeyEnv: p.apiKeyEnv }));
   }
 
-  const bundle = extractBundle(inPath);
-  const { out, patched } = patch(bundle, providers, models);
+  const { bundle, bunfsStart } = extractBundle(inPath);
+  const nativesDir = bunfsStart >= 0 ? pathJoin(dirname(outPath), 'natives') : null;
+  const { out, patched } = patch(bundle, providers, models, nativesDir);
   fs.writeFileSync(outPath, out);
   console.log(`${patched ? 'patched' : 'unchanged (already patched)'}: ${bundle.length} -> ${out.length} bytes -> ${outPath}`);
+  if (nativesDir && patched) {
+    const natives = extractNatives(inPath, nativesDir);
+    console.log(`natives: extracted ${natives.length} addons -> ${nativesDir}`);
+  }
 
   const bun = findBun();
   if (!bun) { console.warn('WARNING: bun not found — skipping verification'); return; }
