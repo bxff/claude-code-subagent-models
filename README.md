@@ -11,18 +11,20 @@ When the input is the native binary, the embedded native addons (image processin
 
 ## Config
 
-Providers are a JSON array in `CC_PROVIDERS`, set in `~/.claude/settings.json`:
+Zero config routes `deepseek-*` to DeepSeek. To add more providers, list them in `CC_PROVIDERS`, set in `~/.claude/settings.json`:
 
 ```json
 {
   "env": {
-    "CC_PROVIDERS": "[{\"prefix\":\"deepseek\",\"baseUrl\":\"https://api.deepseek.com/anthropic\",\"apiKeyEnv\":\"CC_DEEPSEEK_API_KEY\"}]",
-    "CC_EXTRA_MODELS": "deepseek-v4-flash"
+    "CC_PROVIDERS": "[{\"prefix\":\"deepseek\",\"baseUrl\":\"https://api.deepseek.com/anthropic\",\"apiKeyEnv\":\"CC_DEEPSEEK_API_KEY\"},{\"prefix\":\"glm\",\"baseUrl\":\"https://api.z.ai/api/anthropic\",\"apiKeyEnv\":\"CC_ZAI_API_KEY\"}]",
+    "CC_EXTRA_MODELS": "deepseek-v4-flash,glm-5.2,glm-4.7"
   }
 }
 ```
 
-`CC_EXTRA_MODELS` is the comma-separated model list exposed to the Agent tool. Add a `/model` picker entry with the official custom-model vars:
+Any number of providers, any Anthropic-compatible endpoint. `CC_EXTRA_MODELS` is the comma-separated model list exposed to the Agent tool, so every listed model is selectable per subagent.
+
+Add a `/model` picker entry for the primary model with the official custom-model vars:
 
 ```json
 {
