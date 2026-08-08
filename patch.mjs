@@ -6,8 +6,16 @@
  * provider's Anthropic-compatible endpoint with that provider's API key;
  * everything else keeps the normal session endpoint and auth.
  *
- * Usage: node patch.mjs <input> <output.js> [--providers <file.json>]
- *   <input> = native claude binary or extracted cli.js bundle
+ * Usage: npx claude-code-subagent-models [<input> [<output.js>]] [--providers <file.json>] [--no-run] [--in-place] [-- <args>]
+ *   no args:      finds the claude binary, patches it to
+ *                 ~/.cache/claude-code-subagent-models/claude-patched.js, and runs it
+ *   <input> only: same, for a specific binary
+ *   <input> <output.js>: patch only, no run
+ *   -- <args>:    forwarded to the patched claude (e.g. -- --resume <uuid>)
+ *
+ * The claude binary is found via CC_CLAUDE_BIN, then `command -v claude`,
+ * then the usual install locations (~/.local/bin, /usr/local/bin,
+ * /opt/homebrew/bin, ~/.claude/local). Symlinks are resolved.
  *   Run with: bun <output.js>
  *
  * When <input> is the native binary, the embedded native addons
@@ -27,7 +35,8 @@
  *   CC_NATIVES_DIR  override for the natives/ directory (optional)
  */
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import os from 'node:os';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 const MARK = '/*ccr*/';
@@ -87,6 +96,26 @@ const RESOLVER_TAIL_288 = Buffer.from('case n9().haiku35:return"Haiku 3.5";defau
 function findBun() {
   for (const p of [process.env.HOME + '/.bun/bin/bun', 'bun']) {
     try { execFileSync(p, ['--version'], { stdio: 'ignore' }); return p; } catch {}
+  }
+  return null;
+}
+
+// Find the claude binary: CC_CLAUDE_BIN, then PATH, then common install
+// locations. Symlinks are resolved, and each candidate must actually extract
+// as a bundle, so a shell shim named "claude" is skipped for the real binary.
+function findClaude() {
+  const cands = [];
+  if (process.env.CC_CLAUDE_BIN) cands.push(process.env.CC_CLAUDE_BIN);
+  try {
+    cands.push(...execFileSync('sh', ['-lc', 'command -v claude'], { stdio: 'pipe' })
+      .toString().trim().split('\n').filter(Boolean));
+  } catch {}
+  const home = process.env.HOME || os.homedir();
+  cands.push(home + '/.local/bin/claude', '/usr/local/bin/claude', '/opt/homebrew/bin/claude', home + '/.claude/local/claude');
+  for (let c of cands) {
+    if (!c || !fs.existsSync(c)) continue;
+    try { c = fs.realpathSync(c); } catch {}
+    try { extractBundle(c); return c; } catch {}
   }
   return null;
 }
@@ -337,11 +366,23 @@ function main() {
   const args = process.argv.slice(2);
   const pi = args.indexOf('--providers');
   const inPlace = args.includes('--in-place');
-  const [inPath, outPath] = args.filter((a, i) => a !== '--providers' && a !== '--in-place' && args[i - 1] !== '--providers');
-  if (!inPath || !outPath) {
-    console.error('usage: node patch.mjs <input> <output> [--providers <file.json>] [--in-place]');
-    process.exit(1);
+  const noRun = args.includes('--no-run');
+  const dd = args.indexOf('--');
+  const fwd = dd >= 0 ? args.slice(dd + 1) : [];
+  const pre = dd >= 0 ? args.slice(0, dd) : args;
+  const positionals = pre.filter((a, i) => a !== '--providers' && a !== '--in-place' && a !== '--no-run' && pre[i - 1] !== '--providers');
+  let [inPath, outPath] = positionals;
+  if (!inPath) {
+    inPath = findClaude();
+    if (!inPath) {
+      console.error('claude binary not found. Pass the path: npx claude-code-subagent-models /path/to/claude');
+      process.exit(1);
+    }
+    console.log('claude: ' + inPath);
   }
+  const auto = !outPath;
+  if (auto) outPath = pathJoin(process.env.HOME || os.homedir(), '.cache', 'claude-code-subagent-models', 'claude-patched.js');
+
   let providers = DEFAULT_PROVIDERS;
   let models = DEFAULT_MODELS;
   if (pi >= 0 && args[pi + 1]) {
@@ -362,12 +403,15 @@ function main() {
       const ver = execFileSync(outPath, ['--version'], { stdio: 'pipe' }).toString().trim();
       console.log(`boot ok: ${ver}`);
     } catch (e) { console.warn('WARNING: boot check failed: ' + e.message); }
-    return;
+    if (!auto || noRun) return;
+    const res = spawnSync(outPath, fwd, { stdio: 'inherit' });
+    process.exit(res.status === null ? 1 : res.status);
   }
   const { bundle, bunfsStart } = extractBundle(inPath);
   const nativesDir = bunfsStart >= 0 ? pathJoin(dirname(outPath), 'natives') : null;
   const claudeBin = bunfsStart >= 0 ? inPath : null;
   const { out, patched } = patch(bundle, providers, models, nativesDir, claudeBin);
+  fs.mkdirSync(dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, out);
   console.log(`${patched ? 'patched' : 'unchanged (already patched)'}: ${bundle.length} -> ${out.length} bytes -> ${outPath}`);
   if (nativesDir && patched) {
@@ -391,6 +435,11 @@ function main() {
   } catch (e) {
     console.warn('WARNING: boot check failed: ' + e.message);
   }
+
+  if (!auto || noRun) return;
+  console.log('running: bun ' + outPath + (fwd.length ? ' ' + fwd.join(' ') : ''));
+  const res = spawnSync(bun, [outPath, ...fwd], { stdio: 'inherit' });
+  process.exit(res.status === null ? 1 : res.status);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

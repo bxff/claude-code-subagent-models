@@ -1,6 +1,21 @@
 # claude-code-subagent-models
 
 ```bash
+npx claude-code-subagent-models
+```
+
+Finds your Claude Code binary, patches it, and starts it. The patched bundle lands in `~/.cache/claude-code-subagent-models/claude-patched.js`; re-run the same command after each Claude Code update.
+
+The binary is found via `CC_CLAUDE_BIN`, then `command -v claude`, then the usual install locations. Symlinks are resolved. Everything after `--` is passed to the patched claude:
+
+```bash
+npx claude-code-subagent-models -- --resume <uuid>
+```
+
+Patch only, no run, and explicit paths:
+
+```bash
+npx claude-code-subagent-models --no-run
 npx claude-code-subagent-models /path/to/claude claude-patched.js
 bun claude-patched.js
 ```
