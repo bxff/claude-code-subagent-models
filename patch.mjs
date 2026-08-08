@@ -442,4 +442,5 @@ function main() {
   process.exit(res.status === null ? 1 : res.status);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+// run as a bin (symlinked) or directly: compare against the real path
+if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) main();
