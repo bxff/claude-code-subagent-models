@@ -11,7 +11,18 @@ When the input is the native binary, the embedded native addons (image processin
 
 ## Config
 
-Zero config routes `deepseek-*` to DeepSeek. To add more providers, list them in `CC_PROVIDERS`, set in `~/.claude/settings.json`:
+Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
+
+Any number of providers is supported. `CC_PROVIDERS` is an array, one entry per provider:
+
+```json
+[
+  { "prefix": "deepseek", "baseUrl": "https://api.deepseek.com/anthropic", "apiKeyEnv": "CC_DEEPSEEK_API_KEY" },
+  { "prefix": "glm",      "baseUrl": "https://api.z.ai/api/anthropic",      "apiKeyEnv": "CC_ZAI_API_KEY" }
+]
+```
+
+Set it as a single-line JSON string in `~/.claude/settings.json`, and list the models the Agent tool should offer in `CC_EXTRA_MODELS`:
 
 ```json
 {
@@ -22,7 +33,7 @@ Zero config routes `deepseek-*` to DeepSeek. To add more providers, list them in
 }
 ```
 
-Any number of providers, any Anthropic-compatible endpoint. `CC_EXTRA_MODELS` is the comma-separated model list exposed to the Agent tool, so every listed model is selectable per subagent.
+Any Anthropic-compatible endpoint works. Every model in `CC_EXTRA_MODELS` is selectable per subagent.
 
 Add a `/model` picker entry for the primary model with the official custom-model vars:
 
