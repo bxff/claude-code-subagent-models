@@ -8,6 +8,7 @@ bun claude-patched.js
 Adds third-party models to Claude Code as subagents. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client. Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
 
 When the input is the native binary, the embedded native addons (image processing, audio capture, computer use, URL handling) are extracted to a `natives/` directory next to the output, so the patched bundle runs under plain Bun with those features intact.
+
 ## Config
 
 Providers are a JSON array in `CC_PROVIDERS`, set in `~/.claude/settings.json`:
