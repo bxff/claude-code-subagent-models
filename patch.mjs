@@ -16,6 +16,11 @@
  * requires are rewritten to load them from there, so the patched bundle runs
  * under plain bun with the addons intact.
  *
+ * CC's built-in grep/find/rg dispatch re-execs CLAUDE_CODE_EXECPATH (the
+ * bundle's own executable) as a busybox. Under plain bun that path is bun,
+ * so the dispatch is pointed at the native claude binary instead (baked from
+ * <input>, or overridden with CC_CLAUDE_BIN).
+ *
  * Runtime env (shell or ~/.claude/settings.json "env"):
  *   CC_PROVIDERS    JSON: [{"prefix","baseUrl","apiKeyEnv"}] (optional)
  *   CC_EXTRA_MODELS comma list of model names for the Agent tool (optional)
@@ -184,7 +189,7 @@ function buildInjected(providers, models, param, baseVar, authHelper) {
   };
 }
 
-export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nativesDir = null) {
+export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nativesDir = null, claudeBin = null) {
   if (bundle.includes(MARK)) return { out: bundle, patched: false };
   // derive the model list from the FULL provider config before stripping
   if (!models) models = providers.flatMap(p => (p.models || []).map(m => typeof m === 'string' ? m : m.name));
@@ -267,6 +272,15 @@ export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nati
     }
   }
 
+  // busybox dispatch: CC sets CLAUDE_CODE_EXECPATH = process.execPath, which
+  // is bun when the bundle runs under plain bun; the grep/find/rg shell
+  // functions then exec bun with ugrep-style flags. Point it at a real claude
+  // binary (baked from the input, or CC_CLAUDE_BIN; empty -> snapshot fallback).
+  const execAnchor = 'c[yCs]=process.execPath';
+  if (!out.includes(execAnchor)) throw new Error('execpath override anchor not found — version mismatch?');
+  const execRepl = 'c[yCs]=process.env.CC_CLAUDE_BIN||' + JSON.stringify(claudeBin || '');
+  out = out.split(execAnchor).join(execRepl);
+
   return { out: Buffer.from(out, 'latin1'), patched: true };
 }
 
@@ -289,7 +303,8 @@ function main() {
 
   const { bundle, bunfsStart } = extractBundle(inPath);
   const nativesDir = bunfsStart >= 0 ? pathJoin(dirname(outPath), 'natives') : null;
-  const { out, patched } = patch(bundle, providers, models, nativesDir);
+  const claudeBin = bunfsStart >= 0 ? inPath : null;
+  const { out, patched } = patch(bundle, providers, models, nativesDir, claudeBin);
   fs.writeFileSync(outPath, out);
   console.log(`${patched ? 'patched' : 'unchanged (already patched)'}: ${bundle.length} -> ${out.length} bytes -> ${outPath}`);
   if (nativesDir && patched) {
