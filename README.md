@@ -20,11 +20,11 @@ npx claude-code-subagent-models /path/to/claude claude-patched.js
 bun claude-patched.js
 ```
 
-Global install also gives you a short alias:
+Global install gives you the short alias:
 
 ```bash
 npm i -g claude-code-subagent-models
-cc-models
+ccmr
 ```
 
 Adds third-party models to Claude Code as subagents. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client. Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
