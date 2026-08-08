@@ -33,10 +33,13 @@ import { pathToFileURL } from 'node:url';
 const MARK = '/*ccr*/';
 const ID = '[a-zA-Z_$][\\w$]*';
 
-// native addons embedded in the binary's $bunfs filesystem
-const NATIVES = [
+// files embedded in the binary's $bunfs filesystem that the bundle loads at
+// runtime: native addons (require) and JS bundles (readFile for artifacts:
+// charts, syntax highlighting, mermaid diagrams)
+const BUNFS_FILES = [
   'image-processor.node', 'audio-capture.node', 'url-handler.node',
   'computer-use-swift.node', 'computer-use-input.node',
+  'chart.umd.min.js', 'hljsBundle.generated.min.js', 'mermaid.min.js',
 ];
 
 export const DEFAULT_PROVIDERS = [{
@@ -106,14 +109,14 @@ export function extractBundle(binPath) {
   return { bundle: data, bunfsStart: -1 };
 }
 
-// Extract the embedded native addons from a claude binary's $bunfs filesystem.
-// Entries are [name\0][content] runs; the addon files are found by name.
+// Extract every runtime-loaded file from a claude binary's $bunfs filesystem.
+// Entries are [name\0][content] runs; files are found by name.
 export function extractNatives(binPath, outDir) {
   const { bunfsStart } = extractBundle(binPath);
   if (bunfsStart < 0) return [];
   const data = fs.readFileSync(binPath);
   const order = [];
-  for (const name of NATIVES) {
+  for (const name of BUNFS_FILES) {
     const key = Buffer.from(name + '\0');
     const idx = data.indexOf(key, bunfsStart); // entry headers only: require strings have no NUL
     if (idx < 0) throw new Error('bunfs entry not found: ' + name);
@@ -141,6 +144,45 @@ function pathJoin(...parts) {
 function dirname(p) {
   const i = p.lastIndexOf('/');
   return i > 0 ? p.slice(0, i) : '.';
+}
+
+// Runtime-parity checks: the bundle must not reference the $bunfs virtual
+// filesystem or the busybox dispatch in ways that break under plain bun.
+function assertParity(out, nativesDir) {
+  const t = out.toString('latin1');
+  const refs = t.match(/["'\x27]\/\$bunfs\/root\/[^"'\x27]+["'\x27]/g) || [];
+  if (refs.length > 0) throw new Error('parity: unresolved $bunfs path literals: ' + refs.join(', '));
+  if (nativesDir) {
+    const missing = BUNFS_FILES.filter((f) => !fs.existsSync(pathJoin(nativesDir, f)));
+    if (missing.length > 0) throw new Error('parity: missing natives: ' + missing.join(', '));
+  }
+}
+
+// In-place patch of the native binary: replace the embedded bundle with the
+// patched one. The bundle grows by ~1KB, so the embedded $bunfs filesystem
+// (found by magic scan) shifts — the Mach-O sections all precede the bundle,
+// so the layout stays valid. The binary keeps its native behavior: the
+// embedded filesystem, the grep/find busybox dispatch, and
+// Bun.isStandaloneExecutable all work as stock.
+export function patchBinary(binPath, outPath, providers = DEFAULT_PROVIDERS, models = null, extraPatcher = null) {
+  const data = fs.readFileSync(binPath);
+  const banner = Buffer.from('// @bun @bytecode @bun-cjs\n(function(exports, require, module, __filename, __dirname)');
+  const bunfs = Buffer.from('\x00/$bunfs/root/');
+  let best = null, bestEnd = -1;
+  for (let s = data.indexOf(banner); s >= 0; s = data.indexOf(banner, s + 1)) {
+    const endMark = data.indexOf(bunfs, s);
+    if (endMark < 0) continue;
+    const candidate = data.slice(s, endMark);
+    if (BUILD_REQ_RE.test(candidate) && (!best || candidate.length > best.length)) { best = candidate; bestEnd = endMark; }
+  }
+  if (!best) throw new Error('native binary: bundle not found');
+  const span = bestEnd - best.length;
+  const { out, patched } = patch(best, providers, models); // plain-bun splices skipped: native runtime
+  if (!patched) throw new Error('already patched');
+  const final = extraPatcher ? extraPatcher(out).out : out;
+  const patchedBin = Buffer.concat([data.subarray(0, span), final, data.subarray(bestEnd)]);
+  fs.writeFileSync(outPath, patchedBin);
+  return patchedBin;
 }
 
 function buildInjected(providers, models, param, baseVar, authHelper) {
@@ -260,15 +302,22 @@ export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nati
   if (!out.includes('CC_PROVIDERS')) throw new Error('provider routing missing after patch');
   if (gateMatch && GATE_RE.test(out)) throw new Error('original buildURL gate still present');
 
-  // native addons: the $bunfs virtual filesystem only exists inside the
-  // original binary; when running the bundle under plain bun, load the
-  // addons from the extracted natives/ directory instead
+  // $bunfs virtual filesystem: it only exists inside the original binary.
+  // When running the bundle under plain bun, every runtime-loaded file is
+  // read from the extracted natives/ directory instead (requires for the
+  // native addons, readFile for the artifact JS bundles).
   if (nativesDir) {
     const base = 'process.env.CC_NATIVES_DIR||' + JSON.stringify(nativesDir);
-    for (const name of NATIVES) {
-      const from = 'require("/$bunfs/root/' + name + '")';
-      if (!out.includes(from)) throw new Error('bunfs require not found: ' + name);
-      out = out.split(from).join('require(' + base + '+"/' + name + '")');
+    for (const name of BUNFS_FILES) {
+      const node = name.endsWith('.node');
+      const from = node
+        ? 'require("/$bunfs/root/' + name + '")'
+        : '"/$bunfs/root/' + name + '"';
+      if (!out.includes(from)) throw new Error('bunfs reference not found: ' + name);
+      const to = node
+        ? 'require(' + base + '+"/' + name + '")'
+        : '(' + base + ')+"/' + name + '"';
+      out = out.split(from).join(to);
     }
   }
 
@@ -287,9 +336,10 @@ export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nati
 function main() {
   const args = process.argv.slice(2);
   const pi = args.indexOf('--providers');
-  const [inPath, outPath] = args.filter((a, i) => a !== '--providers' && args[i - 1] !== '--providers');
+  const inPlace = args.includes('--in-place');
+  const [inPath, outPath] = args.filter((a, i) => a !== '--providers' && a !== '--in-place' && args[i - 1] !== '--providers');
   if (!inPath || !outPath) {
-    console.error('usage: node patch.mjs <input> <output.js> [--providers <file.json>]');
+    console.error('usage: node patch.mjs <input> <output> [--providers <file.json>] [--in-place]');
     process.exit(1);
   }
   let providers = DEFAULT_PROVIDERS;
@@ -301,6 +351,19 @@ function main() {
     providers = providers.map(p => ({ prefix: p.prefix, baseUrl: p.baseUrl, apiKeyEnv: p.apiKeyEnv }));
   }
 
+  if (inPlace) {
+    // native-binary mode: keep the embedded filesystem and the binary's own
+    // dispatch (grep/find busybox, Bun.isStandaloneExecutable) intact
+    patchBinary(inPath, outPath, providers, models);
+    console.log(`patched in place: ${inPath} -> ${outPath}`);
+    const bun = findBun();
+    if (!bun) return;
+    try {
+      const ver = execFileSync(outPath, ['--version'], { stdio: 'pipe' }).toString().trim();
+      console.log(`boot ok: ${ver}`);
+    } catch (e) { console.warn('WARNING: boot check failed: ' + e.message); }
+    return;
+  }
   const { bundle, bunfsStart } = extractBundle(inPath);
   const nativesDir = bunfsStart >= 0 ? pathJoin(dirname(outPath), 'natives') : null;
   const claudeBin = bunfsStart >= 0 ? inPath : null;
@@ -309,8 +372,9 @@ function main() {
   console.log(`${patched ? 'patched' : 'unchanged (already patched)'}: ${bundle.length} -> ${out.length} bytes -> ${outPath}`);
   if (nativesDir && patched) {
     const natives = extractNatives(inPath, nativesDir);
-    console.log(`natives: extracted ${natives.length} addons -> ${nativesDir}`);
+    console.log(`natives: extracted ${natives.length} files -> ${nativesDir}`);
   }
+  assertParity(out, nativesDir);
 
   const bun = findBun();
   if (!bun) { console.warn('WARNING: bun not found — skipping verification'); return; }
