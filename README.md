@@ -37,6 +37,8 @@ When the input is the native binary, the embedded native addons (image processin
 
 Read more: [DeepSeek subagents in Claude Code on a Max plan, without a proxy](https://musaab.io/posts/2026/deepseek-subagents-claude-code)
 
+The task-list QoL additions (pinning, detaching, retention) are personal tooling in [my-cc-config](https://github.com/bxff/my-cc-config).
+
 ## Config
 
 Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
