@@ -2,7 +2,8 @@
 
 ```bash
 npm i -g claude-code-subagent-models
-ccr
+ccr --key sk-... # first time: saves your DeepSeek key, then patches and runs
+ccr              # every time after
 ```
 
 Adds third-party models to Claude Code as subagents. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client. Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
