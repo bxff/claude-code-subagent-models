@@ -7,13 +7,18 @@ ccr
 
 Install once, then `ccr` is the command. It finds your Claude Code binary, patches it, and starts it. The patched bundle lands in `~/.cache/claude-code-subagent-models/claude-patched.js`; re-run `ccr` after each Claude Code update.
 
-No install, patch only, and explicit paths:
+Patch only, no run, and explicit paths:
+
+```bash
+ccr --no-run
+ccr /path/to/claude claude-patched.js
+bun claude-patched.js
+```
+
+No install at all (runs the same patcher via npx):
 
 ```bash
 npx claude-code-subagent-models
-npx claude-code-subagent-models --no-run
-npx claude-code-subagent-models /path/to/claude claude-patched.js
-bun claude-patched.js
 ```
 
 Everything after `--` is passed to the patched claude:
@@ -43,7 +48,7 @@ Any number of providers is supported. `CC_PROVIDERS` is an array, one entry per 
 ]
 ```
 
-Set it as a single-line JSON string in `~/.claude/settings.json`, and list the models the Agent tool should offer in `CC_EXTRA_MODELS`. Put the provider keys in the same `env` block: Claude Code loads it into the process at startup, so the one-liner works with nothing else set up.
+Set it as a single-line JSON string in `~/.claude/settings.json`, and list the models the Agent tool should offer in `CC_EXTRA_MODELS`. Put the provider keys in the same `env` block: Claude Code loads it into the process at startup, so `ccr` works with nothing else set up.
 
 ```json
 {
