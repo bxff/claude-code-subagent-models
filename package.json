@@ -1,13 +1,11 @@
 {
   "name": "claude-code-subagent-models",
-  "version": "0.1.8",
+  "version": "0.1.10",
   "description": "Add third-party models to Claude Code. Per-request routing, no proxy, no extra login.",
   "type": "module",
   "bin": {
     "claude-code-subagent-models": "./patch.mjs",
-    "cc-models": "./patch.mjs",
-    "cc-router": "./patch.mjs",
-    "ccmr": "./patch.mjs"
+    "ccr": "./patch.mjs"
   },
   "exports": {
     ".": "./patch.mjs"
