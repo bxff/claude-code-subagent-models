@@ -85,6 +85,6 @@ Config changes are picked up at runtime, no re-patch needed.
 
 Patches the local bundle: re-run the command after each Claude Code update. Your provider needs an Anthropic-compatible endpoint, and the patch fails loudly instead of breaking silently if an update renames something.
 
-Modifying the official client is a gray area of Anthropic's terms. Enforcement so far has targeted relays and third-party harnesses, not local patches of the official binary, and there is no documented case of a ban for one as of August 2026. The risk is low but not zero: use your own account, keep telemetry off (ccr does this automatically), and do not resell access.
+Modifying the official client is a gray area of Anthropic's terms. Enforcement so far has targeted relays and third-party harnesses, not local patches of the official binary, and there is no documented case of a ban for one as of August 2026. Use at your own risk.
 
 [npm](https://www.npmjs.com/package/claude-code-subagent-models) · [GitHub](https://github.com/bxff/claude-code-subagent-models)
