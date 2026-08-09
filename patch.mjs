@@ -118,6 +118,7 @@ function ensureClaudeSettings() {
     fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
     console.log('settings: ' + changed.join(', ') + ' -> ' + p);
   }
+  return d;
 }
 
 // Find the claude binary: CC_CLAUDE_BIN, then PATH, then common install
@@ -384,6 +385,25 @@ export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nati
 
 function main() {
   const args = process.argv.slice(2);
+  const keyArg = (() => {
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === '--key') return args[i + 1] || '';
+      if (args[i].startsWith('--key=')) return args[i].slice(6);
+    }
+    return null;
+  })();
+  if (keyArg !== null) {
+    if (!/^sk-[A-Za-z0-9_-]+/.test(keyArg)) {
+      console.error('--key expects a DeepSeek key like sk-...');
+      process.exit(1);
+    }
+    const d = ensureClaudeSettings();
+    d.env.CC_DEEPSEEK_API_KEY = keyArg;
+    const p = pathJoin(process.env.HOME || os.homedir(), '.claude', 'settings.json');
+    fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
+    console.log('deepseek key saved to ' + p);
+    process.exit(0);
+  }
   const pi = args.indexOf('--providers');
   const inPlace = args.includes('--in-place');
   const noRun = args.includes('--no-run');
@@ -402,6 +422,7 @@ function main() {
     const a = pre[i];
     if (a === '--providers') { i++; lastWasFlag = false; continue; }
     if (a === '--in-place' || a === '--no-run' || a === '--no-settings') { lastWasFlag = false; continue; }
+    if (a.startsWith('--key')) { lastWasFlag = false; continue; }
     if (a.startsWith('-')) { pass.push(a); lastWasFlag = true; continue; }
     if (lastWasFlag || positionals.length >= 2) { pass.push(a); lastWasFlag = false; continue; }
     positionals.push(a);
@@ -434,7 +455,10 @@ function main() {
     // dispatch (grep/find busybox, Bun.isStandaloneExecutable) intact
     patchBinary(inPath, outPath, providers, models);
     console.log(`patched in place: ${inPath} -> ${outPath}`);
-    if (!noSettings) ensureClaudeSettings();
+    if (!noSettings) {
+      const d = ensureClaudeSettings();
+      if (!('CC_DEEPSEEK_API_KEY' in d.env)) console.log('hint: set your DeepSeek key with: ccr --key sk-...');
+    }
     const bun = findBun();
     if (!bun) return;
     try {
@@ -458,6 +482,11 @@ function main() {
   }
   assertParity(out, nativesDir);
 
+  if (!noSettings) {
+    const d = ensureClaudeSettings();
+    if (!('CC_DEEPSEEK_API_KEY' in d.env)) console.log('hint: set your DeepSeek key with: ccr --key sk-...');
+  }
+
   const bun = findBun();
   if (!bun) { console.warn('WARNING: bun not found — skipping verification'); return; }
   try {
@@ -473,8 +502,6 @@ function main() {
   } catch (e) {
     console.warn('WARNING: boot check failed: ' + e.message);
   }
-
-  if (!noSettings) ensureClaudeSettings();
 
   if (!auto || noRun) return;
   console.log('running: bun ' + outPath + (fwd.length ? ' ' + fwd.join(' ') : ''));
