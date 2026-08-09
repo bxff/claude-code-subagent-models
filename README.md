@@ -1,31 +1,28 @@
 # claude-code-subagent-models
 
 ```bash
+npm i -g claude-code-subagent-models
+ccr
+```
+
+Install once, then `ccr` is the command. It finds your Claude Code binary, patches it, and starts it. The patched bundle lands in `~/.cache/claude-code-subagent-models/claude-patched.js`; re-run `ccr` after each Claude Code update.
+
+No install, patch only, and explicit paths:
+
+```bash
 npx claude-code-subagent-models
-```
-
-Finds your Claude Code binary, patches it, and starts it. The patched bundle lands in `~/.cache/claude-code-subagent-models/claude-patched.js`; re-run the same command after each Claude Code update.
-
-The binary is found via `CC_CLAUDE_BIN`, then `command -v claude`, then the usual install locations. Symlinks are resolved. Everything after `--` is passed to the patched claude:
-
-```bash
-npx claude-code-subagent-models -- --resume <uuid>
-```
-
-Patch only, no run, and explicit paths:
-
-```bash
 npx claude-code-subagent-models --no-run
 npx claude-code-subagent-models /path/to/claude claude-patched.js
 bun claude-patched.js
 ```
 
-Global install gives you the short alias:
+Everything after `--` is passed to the patched claude:
 
 ```bash
-npm i -g claude-code-subagent-models
-ccr          # Claude Code Router
+ccr -- --resume <uuid>
 ```
+
+The binary is found via `CC_CLAUDE_BIN`, then `command -v claude`, then the usual install locations. Symlinks are resolved.
 
 Adds third-party models to Claude Code as subagents. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client. Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
 
