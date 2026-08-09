@@ -392,17 +392,20 @@ function main() {
   const fwd = dd >= 0 ? args.slice(dd + 1) : [];
   const pre = dd >= 0 ? args.slice(0, dd) : args;
   // patcher-owned flags are consumed; the first two bare words are the input
-  // and output paths; anything else is forwarded to the patched claude, so
-  // `ccr --resume <uuid>` works without an explicit `--` separator.
+  // and output paths; anything else (flags and their values) is forwarded to
+  // the patched claude, so `ccr --resume <uuid>` works without an explicit
+  // `--` separator.
   const positionals = [];
   const pass = [];
+  let lastWasFlag = false;
   for (let i = 0; i < pre.length; i++) {
     const a = pre[i];
-    if (a === '--providers') { i++; continue; }
-    if (a === '--in-place' || a === '--no-run' || a === '--no-settings') continue;
-    if (a.startsWith('-')) { pass.push(a); continue; }
-    if (positionals.length < 2) { positionals.push(a); continue; }
-    pass.push(a);
+    if (a === '--providers') { i++; lastWasFlag = false; continue; }
+    if (a === '--in-place' || a === '--no-run' || a === '--no-settings') { lastWasFlag = false; continue; }
+    if (a.startsWith('-')) { pass.push(a); lastWasFlag = true; continue; }
+    if (lastWasFlag || positionals.length >= 2) { pass.push(a); lastWasFlag = false; continue; }
+    positionals.push(a);
+    lastWasFlag = false;
   }
   const forwarded = [...pass, ...fwd];
   let [inPath, outPath] = positionals;
