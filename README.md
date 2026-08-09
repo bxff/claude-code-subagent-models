@@ -29,7 +29,7 @@ ccr -- --resume <uuid>
 
 The binary is found via `CC_CLAUDE_BIN`, then `command -v claude`, then the usual install locations. Symlinks are resolved.
 
-Each run also makes sure `~/.claude/settings.json` has telemetry off (`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`) and `autoUpdates` off: the patched client should not phone home, and an auto-update would silently replace the bundle the patch is applied to. Skip that with `--no-settings`.
+Each run also makes sure `~/.claude/settings.json` has telemetry off (`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`): the patched client should not phone home. Skip that with `--no-settings`.
 
 Adds third-party models to Claude Code as subagents. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client. Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
 

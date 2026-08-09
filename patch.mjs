@@ -113,10 +113,6 @@ function ensureClaudeSettings() {
     env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
     changed.push('telemetry off');
   }
-  if (d.autoUpdates !== false) {
-    d.autoUpdates = false;
-    changed.push('autoUpdates off');
-  }
   if (changed.length) {
     fs.mkdirSync(dirname(p), { recursive: true });
     fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
