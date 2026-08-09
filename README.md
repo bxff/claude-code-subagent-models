@@ -21,10 +21,10 @@ No install at all (runs the same patcher via npx):
 npx claude-code-subagent-models
 ```
 
-Everything after `--` is passed to the patched claude:
+Everything after `--` is passed to the patched claude, and so is any flag `ccr` does not recognize itself:
 
 ```bash
-ccr -- --resume <uuid>
+ccr --resume <uuid>
 ```
 
 The binary is found via `CC_CLAUDE_BIN`, then `command -v claude`, then the usual install locations. Symlinks are resolved.

@@ -11,7 +11,7 @@
  *                 ~/.cache/claude-code-subagent-models/claude-patched.js, and runs it
  *   <input> only: same, for a specific binary
  *   <input> <output.js>: patch only, no run
- *   -- <args>:    forwarded to the patched claude (e.g. -- --resume <uuid>)
+ *   -- <args>:    forwarded to the patched claude (or any unknown flag, e.g. --resume)
  *
  * The claude binary is found via CC_CLAUDE_BIN, then `command -v claude`,
  * then the usual install locations (~/.local/bin, /usr/local/bin,
@@ -391,7 +391,20 @@ function main() {
   const dd = args.indexOf('--');
   const fwd = dd >= 0 ? args.slice(dd + 1) : [];
   const pre = dd >= 0 ? args.slice(0, dd) : args;
-  const positionals = pre.filter((a, i) => a !== '--providers' && a !== '--in-place' && a !== '--no-run' && pre[i - 1] !== '--providers');
+  // patcher-owned flags are consumed; the first two bare words are the input
+  // and output paths; anything else is forwarded to the patched claude, so
+  // `ccr --resume <uuid>` works without an explicit `--` separator.
+  const positionals = [];
+  const pass = [];
+  for (let i = 0; i < pre.length; i++) {
+    const a = pre[i];
+    if (a === '--providers') { i++; continue; }
+    if (a === '--in-place' || a === '--no-run' || a === '--no-settings') continue;
+    if (a.startsWith('-')) { pass.push(a); continue; }
+    if (positionals.length < 2) { positionals.push(a); continue; }
+    pass.push(a);
+  }
+  const forwarded = [...pass, ...fwd];
   let [inPath, outPath] = positionals;
   if (!inPath) {
     inPath = findClaude();
@@ -426,7 +439,7 @@ function main() {
       console.log(`boot ok: ${ver}`);
     } catch (e) { console.warn('WARNING: boot check failed: ' + e.message); }
     if (!auto || noRun) return;
-    const res = spawnSync(outPath, fwd, { stdio: 'inherit' });
+    const res = spawnSync(outPath, forwarded, { stdio: 'inherit' });
     process.exit(res.status === null ? 1 : res.status);
   }
   const { bundle, bunfsStart } = extractBundle(inPath);
@@ -462,7 +475,7 @@ function main() {
 
   if (!auto || noRun) return;
   console.log('running: bun ' + outPath + (fwd.length ? ' ' + fwd.join(' ') : ''));
-  const res = spawnSync(bun, [outPath, ...fwd], { stdio: 'inherit' });
+  const res = spawnSync(bun, [outPath, ...forwarded], { stdio: 'inherit' });
   process.exit(res.status === null ? 1 : res.status);
 }
 
