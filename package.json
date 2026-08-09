@@ -1,6 +1,6 @@
 {
   "name": "claude-code-subagent-models",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "Add third-party models to Claude Code. Per-request routing, no proxy, no extra login.",
   "type": "module",
   "bin": {

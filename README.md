@@ -5,35 +5,11 @@ npm i -g claude-code-subagent-models
 ccr
 ```
 
-Install once, then `ccr` is the command. It finds your Claude Code binary, patches it, and starts it. The patched bundle lands in `~/.cache/claude-code-subagent-models/claude-patched.js`; re-run `ccr` after each Claude Code update.
-
-Patch only, no run, and explicit paths:
-
-```bash
-ccr --no-run
-ccr /path/to/claude claude-patched.js
-bun claude-patched.js
-```
-
-No install at all (runs the same patcher via npx):
-
-```bash
-npx claude-code-subagent-models
-```
-
-Everything after `--` is passed to the patched claude, and so is any flag `ccr` does not recognize itself:
-
-```bash
-ccr --resume <uuid>
-```
-
-The binary is found via `CC_CLAUDE_BIN`, then `command -v claude`, then the usual install locations. Symlinks are resolved.
-
-Each run also makes sure `~/.claude/settings.json` has telemetry off (`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`): the patched client should not phone home. Skip that with `--no-settings`.
-
 Adds third-party models to Claude Code as subagents. Model names matching a configured provider prefix are routed to that provider's Anthropic-compatible endpoint, per request. No proxy, no extra login: the subscription token stays in the official client. Zero config: `deepseek-*` routes to DeepSeek with the key from `CC_DEEPSEEK_API_KEY`.
 
-When the input is the native binary, the embedded native addons (image processing, audio capture, computer use, URL handling) are extracted to a `natives/` directory next to the output, so the patched bundle runs under plain Bun with those features intact.
+`ccr` finds your Claude Code binary, patches it, and starts it; re-run it after each Claude Code update. The patched bundle lands in `~/.cache/claude-code-subagent-models/claude-patched.js`, with the embedded native addons extracted next to it so it runs under plain Bun. Each run also makes sure telemetry is off in `~/.claude/settings.json` (skip with `--no-settings`).
+
+Other forms: `ccr --no-run` (patch only), `ccr /path/to/claude claude-patched.js` (explicit paths), `npx claude-code-subagent-models` (no install at all). Any flag `ccr` does not recognize is passed to the patched claude: `ccr --resume <uuid>`.
 
 Read more: [DeepSeek subagents in Claude Code on a Max plan, without a proxy](https://musaab.io/posts/2026/deepseek-subagents-claude-code)
 
