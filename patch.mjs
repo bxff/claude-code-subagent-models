@@ -100,6 +100,30 @@ function findBun() {
   return null;
 }
 
+// The patched client should not phone home (the model list is a fingerprint
+// channel) and should not auto-update (an update replaces the bundle the
+// patch is applied to). Ensure both in ~/.claude/settings.json.
+function ensureClaudeSettings() {
+  const p = pathJoin(process.env.HOME || os.homedir(), '.claude', 'settings.json');
+  let d = {};
+  try { d = JSON.parse(fs.readFileSync(p, 'utf8')); } catch {}
+  const env = d.env || (d.env = {});
+  const changed = [];
+  if (env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC !== '1') {
+    env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
+    changed.push('telemetry off');
+  }
+  if (d.autoUpdates !== false) {
+    d.autoUpdates = false;
+    changed.push('autoUpdates off');
+  }
+  if (changed.length) {
+    fs.mkdirSync(dirname(p), { recursive: true });
+    fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
+    console.log('settings: ' + changed.join(', ') + ' -> ' + p);
+  }
+}
+
 // Find the claude binary: CC_CLAUDE_BIN, then PATH, then common install
 // locations. Symlinks are resolved, and each candidate must actually extract
 // as a bundle, so a shell shim named "claude" is skipped for the real binary.
@@ -367,6 +391,7 @@ function main() {
   const pi = args.indexOf('--providers');
   const inPlace = args.includes('--in-place');
   const noRun = args.includes('--no-run');
+  const noSettings = args.includes('--no-settings');
   const dd = args.indexOf('--');
   const fwd = dd >= 0 ? args.slice(dd + 1) : [];
   const pre = dd >= 0 ? args.slice(0, dd) : args;
@@ -397,6 +422,7 @@ function main() {
     // dispatch (grep/find busybox, Bun.isStandaloneExecutable) intact
     patchBinary(inPath, outPath, providers, models);
     console.log(`patched in place: ${inPath} -> ${outPath}`);
+    if (!noSettings) ensureClaudeSettings();
     const bun = findBun();
     if (!bun) return;
     try {
@@ -435,6 +461,8 @@ function main() {
   } catch (e) {
     console.warn('WARNING: boot check failed: ' + e.message);
   }
+
+  if (!noSettings) ensureClaudeSettings();
 
   if (!auto || noRun) return;
   console.log('running: bun ' + outPath + (fwd.length ? ' ' + fwd.join(' ') : ''));
