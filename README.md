@@ -2,7 +2,7 @@
 
 ```bash
 npm i -g claude-code-subagent-models
-ccr --key sk-... # first time: saves your DeepSeek key, then patches and runs
+ccr --key sk-... # once: saves your DeepSeek key, then patches and runs; never needed again
 ccr              # every time after
 ```
 
