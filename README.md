@@ -2,7 +2,7 @@
 
 ```bash
 npm i -g claude-code-subagent-models
-ccr --key sk-... # once: saves your DeepSeek key, then patches and runs; never needed again
+ccr --ds-key sk-... # once: saves your DeepSeek key, then patches and runs; never needed again
 ccr              # every time after
 ```
 
@@ -10,7 +10,7 @@ Adds third-party models to Claude Code as subagents. Model names matching a conf
 
 `ccr` finds your Claude Code binary, patches it, and starts it; re-run it after each Claude Code update. The patched bundle lands in `~/.cache/claude-code-subagent-models/claude-patched.js`, with the embedded native addons extracted next to it so it runs under plain Bun. Each run also makes sure telemetry is off in `~/.claude/settings.json` (skip with `--no-settings`).
 
-Other forms: `ccr --key sk-...` (first-time setup: saves your DeepSeek key to `~/.claude/settings.json`, then patches and runs), `ccr --no-run` (patch only), `ccr /path/to/claude claude-patched.js` (explicit paths), `npx claude-code-subagent-models` (no install at all). Any flag `ccr` does not recognize is passed to the patched claude: `ccr --resume <uuid>`.
+Other forms: `ccr --ds-key sk-...` (first-time setup: saves your DeepSeek key to `~/.claude/settings.json`, then patches and runs), `ccr --no-run` (patch only), `ccr /path/to/claude claude-patched.js` (explicit paths), `npx claude-code-subagent-models` (no install at all). Any flag `ccr` does not recognize is passed to the patched claude: `ccr --resume <uuid>`.
 
 Read more: [DeepSeek subagents in Claude Code on a Max plan, without a proxy](https://musaab.io/posts/2026/deepseek-subagents-claude-code)
 
@@ -29,7 +29,7 @@ Any number of providers is supported. `CC_PROVIDERS` is an array, one entry per 
 ]
 ```
 
-Set it as a single-line JSON string in `~/.claude/settings.json`, and list the models the Agent tool should offer in `CC_EXTRA_MODELS`. Put the provider keys in the same `env` block (or run `ccr --key sk-...` to save the DeepSeek key there for you): Claude Code loads it into the process at startup, so `ccr` works with nothing else set up. Without a key, `ccr` prints a hint pointing at `--key`.
+Set it as a single-line JSON string in `~/.claude/settings.json`, and list the models the Agent tool should offer in `CC_EXTRA_MODELS`. Put the provider keys in the same `env` block (or run `ccr --ds-key sk-...` to save the DeepSeek key there for you): Claude Code loads it into the process at startup, so `ccr` works with nothing else set up. Without a key, `ccr` prints a hint pointing at `--ds-key`.
 
 ```json
 {

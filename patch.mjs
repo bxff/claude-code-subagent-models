@@ -387,18 +387,19 @@ function main() {
   const args = process.argv.slice(2);
   const keyArg = (() => {
     for (let i = 0; i < args.length; i++) {
-      if (args[i] === '--key') return args[i + 1] || '';
+      if (args[i] === '--ds-key' || args[i] === '--key') return args[i + 1] || '';
+      if (args[i].startsWith('--ds-key=')) return args[i].slice(9);
       if (args[i].startsWith('--key=')) return args[i].slice(6);
     }
     return null;
   })();
   if (keyArg !== null) {
     if (!/^sk-[A-Za-z0-9_-]+/.test(keyArg)) {
-      console.error('--key expects a DeepSeek key like sk-...');
+      console.error('--ds-key expects a DeepSeek key like sk-...');
       process.exit(1);
     }
     // save the key, then continue with the normal patch + run flow,
-    // so `ccr --key sk-...` is the whole first-time setup
+    // so `ccr --ds-key sk-...` is the whole first-time setup
     const d = ensureClaudeSettings();
     d.env.CC_DEEPSEEK_API_KEY = keyArg;
     const p = pathJoin(process.env.HOME || os.homedir(), '.claude', 'settings.json');
@@ -423,8 +424,8 @@ function main() {
     const a = pre[i];
     if (a === '--providers') { i++; lastWasFlag = false; continue; }
     if (a === '--in-place' || a === '--no-run' || a === '--no-settings') { lastWasFlag = false; continue; }
-    if (a === '--key') { i++; lastWasFlag = false; continue; }
-    if (a.startsWith('--key=')) { lastWasFlag = false; continue; }
+    if (a === '--ds-key' || a === '--key') { i++; lastWasFlag = false; continue; }
+    if (a.startsWith('--ds-key=') || a.startsWith('--key=')) { lastWasFlag = false; continue; }
     if (a.startsWith('-')) { pass.push(a); lastWasFlag = true; continue; }
     if (lastWasFlag || positionals.length >= 2) { pass.push(a); lastWasFlag = false; continue; }
     positionals.push(a);
@@ -459,7 +460,7 @@ function main() {
     console.log(`patched in place: ${inPath} -> ${outPath}`);
     if (!noSettings) {
       const d = ensureClaudeSettings();
-      if (!('CC_DEEPSEEK_API_KEY' in d.env)) console.log('hint: set your DeepSeek key with: ccr --key sk-...');
+      if (!('CC_DEEPSEEK_API_KEY' in d.env)) console.log('hint: set your DeepSeek key with: ccr --ds-key sk-...');
     }
     const bun = findBun();
     if (!bun) return;
@@ -486,7 +487,7 @@ function main() {
 
   if (!noSettings) {
     const d = ensureClaudeSettings();
-    if (!('CC_DEEPSEEK_API_KEY' in d.env)) console.log('hint: set your DeepSeek key with: ccr --key sk-...');
+    if (!('CC_DEEPSEEK_API_KEY' in d.env)) console.log('hint: set your DeepSeek key with: ccr --ds-key sk-...');
   }
 
   const bun = findBun();
