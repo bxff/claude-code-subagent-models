@@ -397,12 +397,13 @@ function main() {
       console.error('--key expects a DeepSeek key like sk-...');
       process.exit(1);
     }
+    // save the key, then continue with the normal patch + run flow,
+    // so `ccr --key sk-...` is the whole first-time setup
     const d = ensureClaudeSettings();
     d.env.CC_DEEPSEEK_API_KEY = keyArg;
     const p = pathJoin(process.env.HOME || os.homedir(), '.claude', 'settings.json');
     fs.writeFileSync(p, JSON.stringify(d, null, 2) + '\n');
     console.log('deepseek key saved to ' + p);
-    process.exit(0);
   }
   const pi = args.indexOf('--providers');
   const inPlace = args.includes('--in-place');
@@ -422,7 +423,8 @@ function main() {
     const a = pre[i];
     if (a === '--providers') { i++; lastWasFlag = false; continue; }
     if (a === '--in-place' || a === '--no-run' || a === '--no-settings') { lastWasFlag = false; continue; }
-    if (a.startsWith('--key')) { lastWasFlag = false; continue; }
+    if (a === '--key') { i++; lastWasFlag = false; continue; }
+    if (a.startsWith('--key=')) { lastWasFlag = false; continue; }
     if (a.startsWith('-')) { pass.push(a); lastWasFlag = true; continue; }
     if (lastWasFlag || positionals.length >= 2) { pass.push(a); lastWasFlag = false; continue; }
     positionals.push(a);
