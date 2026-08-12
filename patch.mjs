@@ -83,6 +83,9 @@ const AUTH_RE = new RegExp(
   'sg'
 );
 
+// /model picker: the custom-model push ends with this pattern
+const PICKER_RE = /t\.push\(\{value:r,label:Z\.ANTHROPIC_CUSTOM_MODEL_OPTION_NAME\?\?r,description:Z\.ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION\?\?`Custom model \(\$\{r\}\)`\}\);/;
+
 // Agent-tool schema enum (helper differs across versions: E vs L, fable absent pre-2.1.x)
 const ENUM_RE = /model:([A-Za-z_$][\w$]*)\.enum\((\[[^\]]{0,120}\])\)\.optional\(\)\.describe\(/;
 
@@ -278,6 +281,9 @@ function buildInjected(providers, models, param, baseVar, authHelper) {
     // schema enum: keep the base list and helper as found, append extras
     enumFor: (base, helper) =>
       'model:' + helper + '.enum([' + base.slice(1, -1) + ',...(process.env.CC_EXTRA_MODELS||\'' + models.join(',') + '\').split(",")]).optional().describe(',
+    // /model picker: push additional models from CC_PICKER_MODELS after the custom option
+    picker:
+      'try{JSON.parse(process.env.CC_PICKER_MODELS||"[]").forEach($pm=>{if($pm&&$pm.value&&!t.some($pl=>$pl.value===$pm.value))t.push($pm)})}catch{}',
   };
 }
 
@@ -347,6 +353,12 @@ export function patch(bundle, providers = DEFAULT_PROVIDERS, models = null, nati
   const em = ENUM_RE.exec(out);
   if (!em) throw new Error('schema enum anchor lost during patch');
   out = out.slice(0, em.index) + inj.enumFor(em[2], em[1]) + out.slice(em.index + em[0].length);
+
+  const pm = PICKER_RE.exec(out);
+  if (pm) {
+    const insertAt = pm.index + pm[0].length;
+    out = out.slice(0, insertAt) + inj.picker + out.slice(insertAt);
+  }
 
   if (!out.includes(MARK)) throw new Error('routing snippet missing after patch');
   if (!out.includes('CC_PROVIDERS')) throw new Error('provider routing missing after patch');

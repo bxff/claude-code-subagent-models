@@ -56,7 +56,17 @@ Add a `/model` picker entry for the primary model with the official custom-model
 }
 ```
 
-Config changes are picked up at runtime, no re-patch needed.
+Add multiple models to the `/model` picker with `CC_PICKER_MODELS` (a JSON array of `{value, label, description}` objects):
+
+```json
+{
+  "env": {
+    "CC_PICKER_MODELS": "[{\"value\":\"deepseek-v4-flash\",\"label\":\"DeepSeek V4 Flash\",\"description\":\"Cheap and fast\"},{\"value\":\"deepseek-v4-pro\",\"label\":\"DeepSeek V4 Pro\",\"description\":\"Strongest DeepSeek model\"}]"
+  }
+}
+```
+
+`ANTHROPIC_CUSTOM_MODEL_OPTION` adds the first model; `CC_PICKER_MODELS` adds any number of additional entries. Duplicates are skipped. Config changes are picked up at runtime, no re-patch needed.
 
 ## Limitations
 
