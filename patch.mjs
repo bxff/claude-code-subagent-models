@@ -56,7 +56,7 @@ export const DEFAULT_PROVIDERS = [{
   baseUrl: 'https://api.deepseek.com/anthropic',
   apiKeyEnv: 'CC_DEEPSEEK_API_KEY',
 }];
-const DEFAULT_MODELS = ['deepseek-v4-flash'];
+const DEFAULT_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'];
 
 // --- structural anchors -----------------------------------------------------
 
