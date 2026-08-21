@@ -68,6 +68,29 @@ Add multiple models to the `/model` picker with `CC_PICKER_MODELS` (a JSON array
 
 `ANTHROPIC_CUSTOM_MODEL_OPTION` adds the first model; `CC_PICKER_MODELS` adds any number of additional entries. Duplicates are skipped. Config changes are picked up at runtime, no re-patch needed.
 
+## Vision rewrite
+
+Since 0.1.27, a routed request naming `deepseek-v4-flash` (optionally with a
+`[1m]` context suffix) is rewritten **on the wire** to
+`deepseek-v4-flash-vision-exp` — DeepSeek's multimodal model, same price as
+flash, a superset of its capabilities. Everything keeps saying
+`deepseek-v4-flash` (config, picker, subagent frontmatter, transcripts) while
+the API runs the vision model, so pasted images, screenshots, and
+Read-on-image all work in subagents and the main thread. The rewrite is
+idempotent: `deepseek-v4-flash-vision-exp` itself and dated variants like
+`deepseek-v4-flash-0731` pass through untouched, and `deepseek-v4-pro` is
+never affected.
+
+There is no escape hatch on purpose: DeepSeek silently maps unknown model
+names to plain flash, which rejects images with a 400 — the rewrite makes
+that failure class unreachable.
+
+Subagents get a fresh context and never inherit main-thread attachments, so
+hand an image to a subagent by passing its **file path** in the task prompt:
+the subagent's Read tool returns the image as an `image` block in its own
+request, which then rides to the vision model. Browser screenshots inside
+subagents work the same way.
+
 ## Limitations
 
 Patches the local bundle: re-run the command after each Claude Code update. Your provider needs an Anthropic-compatible endpoint, and the patch fails loudly instead of breaking silently if an update renames something.

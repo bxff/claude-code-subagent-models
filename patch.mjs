@@ -241,6 +241,15 @@ export function patchBinary(binPath, outPath, providers = DEFAULT_PROVIDERS, mod
 function buildInjected(providers, models, param, baseVar, authHelper) {
   const def = JSON.stringify(providers).replace(/'/g, "\\'");
   const key = '(process.env[$x.apiKeyEnv||""]||"")';
+  // VISION REWRITE: deepseek-v4-flash -> deepseek-v4-flash-vision-exp on the
+  // wire, preserving any [1m] context suffix. Idempotent (the lookahead keeps
+  // deepseek-v4-flash-vision-exp itself and dated variants like
+  // deepseek-v4-flash-0731 untouched). Runs inside the routed branch only.
+  // No env escape hatch on purpose: DeepSeek silently maps unknown model names
+  // to plain flash, which 400s on image input — this makes that failure class
+  // unreachable, and the vision model is a same-price superset of flash.
+  const visionRewrite =
+    '/*CCD-VISION*/' + param + '.body.model=' + param + '.body.model.replace(/^deepseek-v4-flash(?=\\[|$)/,"deepseek-v4-flash-vision-exp");';
   return {
     def, models: models.join(','),
     // after the destructure statement (Pattern A): route + stamp + reassign base
@@ -252,7 +261,7 @@ function buildInjected(providers, models, param, baseVar, authHelper) {
       'if($h instanceof Headers)$h.set("Authorization","Bearer "+' + key + ');' +
       'else if($h.values instanceof Headers){$h.values.set("Authorization","Bearer "+' + key + ');$h.nulls.add("x-api-key")}' +
       'else $h.Authorization="Bearer "+' + key + '}' +
-      'if($x.baseUrl)' + baseVar + '=$x.baseUrl;break}}}',
+      'if($x.baseUrl)' + baseVar + '=$x.baseUrl;break}}' + visionRewrite + '}',
     // right after the function opening brace (Pattern B): route flag + header stamp
     routeB:
       MARK + 'let $m=typeof ' + param + '.body?.model==="string"?' + param + '.body.model:"";' +
@@ -261,7 +270,7 @@ function buildInjected(providers, models, param, baseVar, authHelper) {
       'let $h=' + param + '.headers;if($h){' +
       'if($h instanceof Headers)$h.set("Authorization","Bearer "+' + key + ');' +
       'else if($h.values instanceof Headers){$h.values.set("Authorization","Bearer "+' + key + ');$h.nulls.add("x-api-key")}' +
-      'else $h.Authorization="Bearer "+' + key + '}break}}}',
+      'else $h.Authorization="Bearer "+' + key + '}break}}' + visionRewrite + '}',
     // inline buildURL third-arg rewrite (Pattern B)
     urlArg:
       '(()=>{const $p=JSON.parse(process.env.CC_PROVIDERS||\'' + def + '\');' +
